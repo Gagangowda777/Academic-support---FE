@@ -23,7 +23,7 @@ const EXAM_TYPE_LABELS = {
   viva: 'Viva',
 };
 
-const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'zip'];
+const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'zip', 'mp4'];
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_ZIP_BYTES = 10 * 1024 * 1024;
 const MAX_FILES = 6;
@@ -366,8 +366,7 @@ function UploadForm({ session, subjectId, onUploaded }) {
           <span>Choose files</span>
         </label>
         <p className="fd-hint">
-          PDF, PPT/PPTX, DOC/DOCX, JPG, PNG or ZIP · up to {MAX_FILES} files, 20 MB each (zip 10 MB).
-          Video and audio lectures are shared as reference links.
+          PDF, PPT/PPTX, DOC/DOCX, JPG, PNG, ZIP or MP4 video · up to {MAX_FILES} files, 20 MB each (zip 10 MB).
         </p>
 
         {files.length ? (
@@ -843,14 +842,6 @@ export default function FacultyDashboard() {
               </article>
 
               <article className="sd-summary__card">
-                <span className="sd-summary__label">Attendance rate</span>
-                <strong className="sd-summary__value">{overview.stats.attendanceRate}%</strong>
-                <span className="sd-summary__hint">
-                  {overview.stats.present} present of {overview.stats.marked} marks
-                </span>
-              </article>
-
-              <article className="sd-summary__card">
                 <span className="sd-summary__label">Materials published</span>
                 <strong className="sd-summary__value">{overview.stats.materials}</strong>
                 <span className="sd-summary__hint">
@@ -874,45 +865,6 @@ export default function FacultyDashboard() {
             ) : null}
 
             <div className="ov-grid">
-              <section className="sd-panel ov-card">
-                <div className="sd-panel__head">
-                  <div className="sd-panel__titlewrap">
-                    <ClassesIcon />
-                    <h2 className="sd-panel__title">Class attendance</h2>
-                  </div>
-                </div>
-                <div className="ov-attendance">
-                  <div
-                    className="ov-donut"
-                    style={{ '--pct': `${overview.stats.attendanceRate}%` }}
-                    role="img"
-                    aria-label={`${overview.stats.attendanceRate} percent attendance`}
-                  >
-                    <div className="ov-donut__inner">
-                      <strong>{overview.stats.attendanceRate}%</strong>
-                      <span>present</span>
-                    </div>
-                  </div>
-                  <ul className="ov-legend">
-                    <li>
-                      <span className="ov-dot ov-dot--present" />
-                      Present <strong>{overview.stats.present}</strong>
-                    </li>
-                    <li>
-                      <span className="ov-dot ov-dot--absent" />
-                      Absent <strong>{overview.stats.absent}</strong>
-                    </li>
-                    <li>
-                      <span className="ov-dot ov-dot--reviewed" />
-                      Late <strong>{overview.stats.late}</strong>
-                    </li>
-                  </ul>
-                </div>
-                <p className="ov-note">
-                  Across {overview.stats.sessions} sessions in {overview.stats.subjects} subjects.
-                </p>
-              </section>
-
               <section className="sd-panel ov-card">
                 <div className="sd-panel__head">
                   <div className="sd-panel__titlewrap">
@@ -1067,9 +1019,6 @@ export default function FacultyDashboard() {
                       <span>{item.studentCount} students</span>
                       <span>{item.sessionCount} sessions</span>
                       <span>{item.materialCount} materials</span>
-                      <strong>
-                        {item.attendanceRate === null ? '—' : `${item.attendanceRate}%`}
-                      </strong>
                     </div>
                   </button>
                 ))}

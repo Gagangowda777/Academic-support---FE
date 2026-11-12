@@ -108,13 +108,6 @@ const ClassesIcon = () => (
   </Icon>
 );
 
-const AttendanceIcon = () => (
-  <Icon>
-    <rect x="3" y="5" width="18" height="16" rx="2.5" />
-    <path d="M8 3v4M16 3v4M3 10h18M9 15l2 2 4-4" />
-  </Icon>
-);
-
 const ExaminationsIcon = () => (
   <Icon>
     <path d="M6 3h8l4 4v14H6z" />
@@ -239,7 +232,6 @@ function ConflictPanel({ conflict, candidate, onCancel, onForce, busy }) {
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'classes', label: 'Faculty & Classes' },
-  { id: 'attendance', label: 'Attendance' },
   { id: 'examinations', label: 'Examinations' },
   { id: 'reports', label: 'Reports & Analytics' },
 ];
@@ -273,9 +265,6 @@ export default function HodDashboard() {
   const [choices, setChoices] = useState({});
   const [conflict, setConflict] = useState(null);
   const [busySubjectId, setBusySubjectId] = useState('');
-  const [attendance, setAttendance] = useState(null);
-  const [attendanceSubject, setAttendanceSubject] = useState('');
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [examinations, setExaminations] = useState(null);
   const [examinationsLoading, setExaminationsLoading] = useState(false);
   const [examFormOpen, setExamFormOpen] = useState(false);
@@ -329,19 +318,6 @@ export default function HodDashboard() {
       active = false;
     };
   }, [loadDashboard]);
-
-  const loadAttendance = useCallback(async (subjectId) => {
-    setAttendanceLoading(true);
-
-    try {
-      const payload = await api.hodAttendance(subjectId || '');
-      setAttendance(payload);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setAttendanceLoading(false);
-    }
-  }, []);
 
   const loadExaminations = useCallback(async () => {
     setExaminationsLoading(true);
@@ -480,11 +456,6 @@ export default function HodDashboard() {
   }, []);
 
   useEffect(() => {
-    if (tab !== 'attendance') return;
-    loadAttendance(attendanceSubject);
-  }, [tab, attendanceSubject, loadAttendance]);
-
-  useEffect(() => {
     if (tab !== 'examinations') return;
     loadExaminations();
   }, [tab, loadExaminations]);
@@ -564,7 +535,6 @@ export default function HodDashboard() {
       setConflict(null);
       await loadDashboard();
 
-      if (attendance) await loadAttendance(attendanceSubject);
     } catch (err) {
       if (err.status === 409 && err.data?.conflicts) {
         setConflict({
@@ -586,11 +556,9 @@ export default function HodDashboard() {
       ? 'Department overview'
       : tab === 'classes'
         ? 'Faculty & classes'
-        : tab === 'attendance'
-          ? 'Student attendance'
-          : tab === 'examinations'
-            ? 'Examinations'
-            : 'Reports & Analytics';
+        : tab === 'examinations'
+          ? 'Examinations'
+          : 'Reports & Analytics';
 
   return (
     <div className="sd">
@@ -620,15 +588,11 @@ export default function HodDashboard() {
             >
               {item.id === 'overview' ? <OverviewIcon /> : null}
               {item.id === 'classes' ? <ClassesIcon /> : null}
-              {item.id === 'attendance' ? <AttendanceIcon /> : null}
               {item.id === 'examinations' ? <ExaminationsIcon /> : null}
               {item.id === 'reports' ? <ReportsIcon /> : null}
               {item.label}
               {item.id === 'classes' && subjects.length ? (
                 <span className="sd__badge">{subjects.length}</span>
-              ) : null}
-              {item.id === 'attendance' && stats?.students ? (
-                <span className="sd__badge">{stats.students}</span>
               ) : null}
               {item.id === 'reports' && reports?.summary?.overdueNotes ? (
                 <span className="sd__badge sd__badge--warn">{reports.summary.overdueNotes}</span>
@@ -688,7 +652,7 @@ export default function HodDashboard() {
               <StatCard
                 label="Students"
                 value={stats.students}
-                hint={`${stats.studentsWithRecords} with attendance records`}
+                hint="Across department classes"
               />
               <StatCard
                 label="Sessions"
@@ -700,24 +664,13 @@ export default function HodDashboard() {
                 value={stats.materials}
                 hint={`${stats.attachments} files · ${stats.sessionsWithoutMaterial} sessions pending`}
               />
-              <StatCard
-                label="Attendance rate"
-                value={stats.attendanceRate === null ? '—' : `${stats.attendanceRate}%`}
-                hint={`${stats.present} present · ${stats.absent} absent of ${stats.marked} marks`}
-                accent
-              />
-              <StatCard
-                label="Students at risk"
-                value={stats.lowAttendanceStudents}
-                hint={`below ${stats.lowAttendanceThreshold}% attendance`}
-              />
             </section>
 
             <div className="hod-grid-2">
               <section className="sd-panel">
                 <div className="sd-panel__head">
                   <div className="sd-panel__titlewrap">
-                    <AttendanceIcon />
+                    <ClassesIcon />
                     <h2 className="sd-panel__title">Recent sessions</h2>
                   </div>
                   <span className="sd-panel__hint">Latest lectures in your department</span>
@@ -735,11 +688,6 @@ export default function HodDashboard() {
                         </span>
                       </div>
                       <div className="hod-row__meta">
-                        <span className={`fd-pill${isLow(session.attendance.rate) ? ' fd-pill--absent' : ''}`}>
-                          {session.attendance.rate === null
-                            ? 'Not marked'
-                            : `${session.attendance.rate}% present`}
-                        </span>
                         {session.material ? (
                           <span className="fd-pill fd-pill--ok">
                             Material · {session.attachmentCount} file
@@ -997,7 +945,6 @@ export default function HodDashboard() {
                       <th scope="col">Sessions</th>
                       <th scope="col">Students</th>
                       <th scope="col">Materials</th>
-                      <th scope="col">Attendance</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1011,182 +958,12 @@ export default function HodDashboard() {
                         <td>{member.sessionCount}</td>
                         <td>{member.studentCount}</td>
                         <td>{member.materialCount}</td>
-                        <td>
-                          <RateBar rate={member.attendance.rate} compact />
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </section>
-          </>
-        ) : null}
-
-        {!loading && tab === 'attendance' ? (
-          <>
-            <div className="hod-chiprow" role="group" aria-label="Filter attendance by class">
-              <button
-                type="button"
-                className={`hod-filter${attendanceSubject === '' ? ' is-active' : ''}`}
-                aria-pressed={attendanceSubject === ''}
-                onClick={() => setAttendanceSubject('')}
-              >
-                All classes
-              </button>
-              {(attendance?.subjects || subjects).map((subject) => (
-                <button
-                  key={subject.id}
-                  type="button"
-                  className={`hod-filter${attendanceSubject === subject.id ? ' is-active' : ''}`}
-                  aria-pressed={attendanceSubject === subject.id}
-                  onClick={() => setAttendanceSubject(subject.id)}
-                >
-                  {subject.code}
-                  {subject.rate !== undefined && subject.rate !== null ? (
-                    <span className="hod-filter__rate">{subject.rate}%</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-
-            {attendanceLoading ? (
-              <div className="sd__state">
-                <span className="spinner" aria-label="Loading attendance" />
-              </div>
-            ) : null}
-
-            {!attendanceLoading && attendance ? (
-              <>
-                <section className="hod-stats hod-stats--compact">
-                  <StatCard label="Students" value={attendance.summary.students} />
-                  <StatCard label="Sessions" value={attendance.summary.sessions} />
-                  <StatCard label="Present" value={attendance.summary.present} />
-                  <StatCard label="Absent" value={attendance.summary.absent} />
-                  <StatCard
-                    label="Attendance rate"
-                    value={`${attendance.summary.rate ?? '—'}%`}
-                    accent
-                  />
-                  <StatCard
-                    label={`Below ${attendance.summary.lowAttendanceThreshold}%`}
-                    value={attendance.summary.lowAttendance}
-                  />
-                </section>
-
-                <section className="sd-panel">
-                  <div className="sd-panel__head">
-                    <div className="sd-panel__titlewrap">
-                      <AttendanceIcon />
-                      <h2 className="sd-panel__title">Student attendance</h2>
-                    </div>
-                    <span className="sd-panel__hint">
-                      {attendance.scope
-                        ? `${attendance.scope.code} · ${attendance.scope.name}`
-                        : 'All classes in the department'}
-                    </span>
-                  </div>
-
-                  <div className="hod-tablewrap">
-                    <table className="hod-table hod-table--students">
-                      <thead>
-                        <tr>
-                          <th scope="col">Student</th>
-                          <th scope="col">Enrollment</th>
-                          <th scope="col">Marked</th>
-                          <th scope="col">Present</th>
-                          <th scope="col">Absent</th>
-                          <th scope="col">Attendance</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attendance.students.map((student) => (
-                          <tr key={student.id}>
-                            <td>
-                              <strong>{student.name}</strong>
-                              <span className="hod-table__sub">{student.email}</span>
-                            </td>
-                            <td>{student.enrollmentId || '—'}</td>
-                            <td>{student.marked}</td>
-                            <td>{student.present}</td>
-                            <td>{student.absent + student.late}</td>
-                            <td>
-                              {student.rate === null ? (
-                                <span className="hod-table__sub">No records</span>
-                              ) : (
-                                <RateBar rate={student.rate} compact />
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {!attendance.students.length ? (
-                    <p className="fd-hint">No attendance has been marked for this selection yet.</p>
-                  ) : null}
-                </section>
-
-                {attendance.sessions ? (
-                  <section className="sd-panel">
-                    <div className="sd-panel__head">
-                      <div className="sd-panel__titlewrap">
-                        <OverviewIcon />
-                        <h2 className="sd-panel__title">Session register</h2>
-                      </div>
-                      <span className="sd-panel__hint">
-                        {attendance.sessions.length} sessions in {attendance.scope.code}
-                      </span>
-                    </div>
-
-                    <div className="hod-tablewrap">
-                      <table className="hod-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Date &amp; time</th>
-                            <th scope="col">Topic</th>
-                            <th scope="col">Room</th>
-                            <th scope="col">Present</th>
-                            <th scope="col">Absent</th>
-                            <th scope="col">Attendance</th>
-                            <th scope="col">Material</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {attendance.sessions.map((session) => (
-                            <tr key={session.id}>
-                              <td>
-                                <strong>{formatCompactDate(session.date)}</strong>
-                                <span className="hod-table__sub">
-                                  {session.startTime} – {session.endTime}
-                                </span>
-                              </td>
-                              <td>{session.topic}</td>
-                              <td>{session.room}</td>
-                              <td>{session.present}</td>
-                              <td>{session.absent + session.late}</td>
-                              <td>
-                                <RateBar rate={session.rate} compact />
-                              </td>
-                              <td>
-                                <span
-                                  className={`fd-pill ${
-                                    session.material ? 'fd-pill--ok' : 'fd-pill--pending'
-                                  }`}
-                                >
-                                  {session.material ? 'Uploaded' : 'Pending'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                ) : null}
-              </>
-            ) : null}
           </>
         ) : null}
 
@@ -1772,7 +1549,7 @@ export default function HodDashboard() {
                   <section className="sd-panel">
                     <div className="sd-panel__head">
                       <div className="sd-panel__titlewrap">
-                        <AttendanceIcon />
+                        <ReportsIcon />
                         <h2 className="sd-panel__title">Notes SLA tracking</h2>
                       </div>
                       <span className="sd-panel__hint">

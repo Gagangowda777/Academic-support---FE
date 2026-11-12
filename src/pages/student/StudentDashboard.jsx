@@ -63,7 +63,8 @@ function canPreview(attachment) {
   return (
     attachment.mimeType === 'application/pdf' ||
     attachment.mimeType === 'image/jpeg' ||
-    attachment.mimeType === 'image/png'
+    attachment.mimeType === 'image/png' ||
+    attachment.mimeType === 'video/mp4'
   );
 }
 
@@ -148,13 +149,6 @@ const ClassesIcon = () => (
   <Icon>
     <rect x="3" y="5" width="18" height="16" rx="2.5" />
     <path d="M8 3v4M16 3v4M3 10h18M8 15h4" />
-  </Icon>
-);
-
-const LogbookIcon = () => (
-  <Icon>
-    <path d="M6 3h9l4 4v14H6z" />
-    <path d="M15 3v4h4M9 12h6M9 16h4" />
   </Icon>
 );
 
@@ -668,6 +662,12 @@ function PreviewDialog({ preview, onClose, onDownload }) {
               alt={`Preview of ${attachment.name}`}
             />
           ) : null}
+
+          {status === 'ready' && kind === 'video' ? (
+            <video className="sd-preview__video" src={url} controls preload="metadata">
+              Your browser does not support MP4 video playback.
+            </video>
+          ) : null}
         </div>
 
         <footer className="sd-preview__foot">
@@ -767,7 +767,7 @@ function NotificationBell({ notifications, userId, onSelectNotification }) {
                         className={`sd-bell__icon sd-bell__icon--${item.kind || 'notes'}`}
                         aria-hidden="true"
                       >
-                        {item.kind === 'attendance' ? <CheckSmall /> : <LogbookIcon />}
+                        <LinkIcon />
                       </span>
                       <span className="sd-bell__itemtext">
                         <span className="sd-bell__itemtitle">{item.title}</span>
@@ -785,61 +785,12 @@ function NotificationBell({ notifications, userId, onSelectNotification }) {
               </ul>
             ) : (
               <p className="sd-bell__empty">
-                No recent alerts yet. New notes and attendance updates will appear here.
+                No recent note alerts yet.
               </p>
             )}
           </div>
         </>
       ) : null}
-    </div>
-  );
-}
-
-function AttendanceTable({ records }) {
-  if (!records.length) {
-    return (
-      <div className="sd-empty">
-        <span className="sd-empty__icon">
-          <CheckIcon />
-        </span>
-        <p className="sd-empty__title">No attendance marked yet</p>
-        <p className="sd-empty__text">Sessions appear here once your faculty mark the register.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="sd-tablewrap">
-      <table className="sd-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Session</th>
-            <th>Course</th>
-            <th>Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((record) => (
-            <tr key={record.sessionId}>
-              <td>{dateFormat.format(new Date(record.date))}</td>
-              <td>
-                <strong>{record.topic}</strong>
-              </td>
-              <td>
-                {record.courseCode} · {record.courseName}
-              </td>
-              <td>
-                {record.startTime} – {record.endTime}
-              </td>
-              <td>
-                <span className={`sd-status sd-status--${record.status}`}>{record.status}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -926,7 +877,12 @@ export default function StudentDashboard() {
   }, [preview?.url]);
 
   async function previewAttachment(session, attachment) {
-    const kind = attachment.mimeType === 'application/pdf' ? 'pdf' : 'image';
+    const kind =
+      attachment.mimeType === 'application/pdf'
+        ? 'pdf'
+        : attachment.mimeType === 'video/mp4'
+          ? 'video'
+          : 'image';
     setPreview({
       attachment,
       session,
@@ -1003,15 +959,15 @@ export default function StudentDashboard() {
 
   const stats = data?.stats;
   const missedSessions = data?.missedSessions ?? [];
-  const attendance = data?.attendance ?? [];
   const sharedMaterials = data?.sharedMaterials ?? [];
   const upcomingExams = data?.upcomingExams ?? [];
   const isOverviewView = view === 'overview';
   const isMissedView = view === 'missed';
-  const isAttendanceView = view === 'attendance';
 
   const notificationList = useMemo(() => {
-    if (Array.isArray(data?.notifications)) return data.notifications;
+    if (Array.isArray(data?.notifications)) {
+      return data.notifications.filter((item) => item.kind !== 'attendance');
+    }
 
     return missedSessions
       .filter((session) => session.material)
@@ -1063,8 +1019,7 @@ export default function StudentDashboard() {
   const reviewedCount = missedSessions.filter((session) => session.reviewed).length;
   const caughtUpPercent = missedSessions.length
     ? Math.round((reviewedCount / missedSessions.length) * 100)
-    : 0;
-
+    : 100;
   const filtersActive = statusFilter !== 'all' || subjectFilter !== 'all' || Boolean(term);
 
   const activeSession = activeSessionId
@@ -1085,13 +1040,6 @@ export default function StudentDashboard() {
     if (item.kind === 'notes' && missedSessions.some((session) => session.id === item.sessionId)) {
       setActiveSharedId(null);
       setActiveSessionId(item.sessionId);
-      return;
-    }
-
-    if (item.kind === 'attendance') {
-      setActiveSessionId(null);
-      setActiveSharedId(null);
-      setView('attendance');
     }
   }
 
@@ -1136,15 +1084,6 @@ export default function StudentDashboard() {
             {stats ? <span className="sd__badge">{stats.missed}</span> : null}
           </button>
 
-          <button
-            type="button"
-            className={`sd__navitem${isAttendanceView ? ' sd__navitem--active' : ''}`}
-            aria-current={isAttendanceView ? 'page' : undefined}
-            onClick={() => setView('attendance')}
-          >
-            <LogbookIcon />
-            Attendance &amp; Logs
-          </button>
         </nav>
 
         <div className="sd__sidebar-foot">
@@ -1162,9 +1101,7 @@ export default function StudentDashboard() {
               <h1 className="sd__title">
                 {isOverviewView
                   ? `Welcome back, ${user?.name?.split(' ')[0] || 'student'}`
-                  : isMissedView
-                    ? 'Missed Classes & Resources'
-                    : 'Attendance & Logs'}
+                  : 'Missed Classes & Resources'}
               </h1>
               <p className="sd__subtitle">
                 Academic Support Portal · {user?.department} · Semester 5
@@ -1198,103 +1135,16 @@ export default function StudentDashboard() {
 
         {state === 'ready' && isOverviewView ? (
           <>
-            <section className="sd-summary" aria-label="Semester snapshot">
-              <article className="sd-summary__card">
-                <span className="sd-summary__label">Attendance rate</span>
-                <strong className="sd-summary__value">{stats.attendanceRate}%</strong>
-                <span className="sd-summary__hint">
-                  {stats.attended} of {stats.totalSessions} marked sessions
-                </span>
-              </article>
-
-              <article className="sd-summary__card">
-                <span className="sd-summary__label">Missed classes</span>
-                <strong className="sd-summary__value">{stats.missed}</strong>
-                <span className="sd-summary__hint">with notes and follow-up</span>
-              </article>
-
+            <section className="sd-summary" aria-label="Learning snapshot">
               <article className="sd-summary__card">
                 <span className="sd-summary__label">Notes available</span>
                 <strong className="sd-summary__value">{availableCount}</strong>
                 <span className="sd-summary__hint">{awaitingCount} still awaiting upload</span>
               </article>
 
-              <article className="sd-summary__card sd-summary__card--progress">
-                <span className="sd-summary__label">Catch-up progress</span>
-                <strong className="sd-summary__value sd-summary__value--compact">
-                  {caughtUpPercent}% reviewed
-                </strong>
-                <div
-                  className="sd-progress"
-                  role="progressbar"
-                  aria-valuenow={caughtUpPercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <span className="sd-progress__bar" style={{ width: `${caughtUpPercent}%` }} />
-                </div>
-                <span className="sd-summary__hint">
-                  {reviewedCount} of {missedSessions.length} missed sessions
-                </span>
-              </article>
             </section>
 
             <div className="ov-grid">
-              <section className="sd-panel ov-card">
-                <div className="sd-panel__head">
-                  <div className="sd-panel__titlewrap">
-                    <LogbookIcon />
-                    <h2 className="sd-panel__title">Attendance snapshot</h2>
-                  </div>
-                  <button
-                    type="button"
-                    className="ov-link"
-                    onClick={() => setView('attendance')}
-                  >
-                    Open register
-                  </button>
-                </div>
-
-                <div className="ov-attendance">
-                  <div
-                    className="ov-donut"
-                    style={{ '--pct': `${stats.attendanceRate}%` }}
-                    role="img"
-                    aria-label={`${stats.attendanceRate} percent attendance`}
-                  >
-                    <div className="ov-donut__inner">
-                      <strong>{stats.attendanceRate}%</strong>
-                      <span>present</span>
-                    </div>
-                  </div>
-                  <ul className="ov-legend">
-                    <li>
-                      <span className="ov-dot ov-dot--present" />
-                      Attended <strong>{stats.attended}</strong>
-                    </li>
-                    <li>
-                      <span className="ov-dot ov-dot--absent" />
-                      Missed <strong>{stats.missed}</strong>
-                    </li>
-                    <li>
-                      <span className="ov-dot ov-dot--reviewed" />
-                      Reviewed <strong>{reviewedCount}</strong>
-                    </li>
-                  </ul>
-                </div>
-
-                {awaitingCount ? (
-                  <p className="ov-note">
-                    {awaitingCount} missed {awaitingCount === 1 ? 'session is' : 'sessions are'}{' '}
-                    waiting for faculty notes.
-                  </p>
-                ) : (
-                  <p className="ov-note ov-note--good">
-                    Every missed session has notes available.
-                  </p>
-                )}
-              </section>
-
               <section className="sd-panel ov-card">
                 <div className="sd-panel__head">
                   <div className="sd-panel__titlewrap">
@@ -1404,7 +1254,7 @@ export default function StudentDashboard() {
               <section className="sd-panel">
                 <div className="sd-panel__head">
                   <div className="sd-panel__titlewrap">
-                    <LogbookIcon />
+                    <LinkIcon />
                     <h2 className="sd-panel__title">Class materials shared with everyone</h2>
                   </div>
                   <span className="sd-panel__hint">{sharedMaterials.length} available</span>
@@ -1601,22 +1451,6 @@ export default function StudentDashboard() {
           </>
         ) : null}
 
-        {state === 'ready' && isAttendanceView ? (
-          <section className="sd-panel">
-            <div className="sd-panel__head">
-              <div className="sd-panel__titlewrap">
-                <LogbookIcon />
-                <h2 className="sd-panel__title">Attendance register</h2>
-              </div>
-              <span className="sd-panel__hint">
-                {stats.attendanceRate}% attendance · {stats.attended} of {stats.totalSessions}{' '}
-                sessions
-              </span>
-            </div>
-
-            <AttendanceTable records={attendance} />
-          </section>
-        ) : null}
       </main>
 
       {activeSession ? (

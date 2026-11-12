@@ -134,18 +134,6 @@ const ShieldIcon = () => (
   </Icon>
 );
 
-function Rate({ value }) {
-  if (value === null || value === undefined) return <span className="ad-muted">—</span>;
-  return (
-    <span className={`ad-rate${value < 75 ? ' ad-rate--low' : ''}`}>
-      <span className="ad-rate__bar">
-        <span style={{ width: `${Math.min(100, value)}%` }} />
-      </span>
-      {value}%
-    </span>
-  );
-}
-
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const isSuper = user?.role === 'super_admin';
@@ -432,13 +420,6 @@ export default function AdminDashboard() {
               ) : (
                 <>
                   <article className="sd-summary__card">
-                    <span className="sd-summary__label">Attendance rate</span>
-                    <strong className="sd-summary__value">
-                      {stats.attendanceRate === null ? '—' : `${stats.attendanceRate}%`}
-                    </strong>
-                    <span className="sd-summary__hint">{stats.marked} attendance marks recorded</span>
-                  </article>
-                  <article className="sd-summary__card">
                     <span className="sd-summary__label">Upcoming exams</span>
                     <strong className="sd-summary__value">{stats.upcomingExams}</strong>
                     <span className="sd-summary__hint">
@@ -632,7 +613,6 @@ export default function AdminDashboard() {
                         <th>Faculty</th>
                         <th>Subjects</th>
                         <th>Sessions</th>
-                        <th>Attendance</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -643,7 +623,6 @@ export default function AdminDashboard() {
                           <td>{row.faculty}</td>
                           <td>{row.subjects}</td>
                           <td>{row.sessions}</td>
-                          <td><Rate value={row.attendanceRate} /></td>
                         </tr>
                       ))}
                     </tbody>
