@@ -209,6 +209,7 @@ function UploadForm({ session, subjectId, onUploaded }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (visibility !== 'selected') return undefined;
@@ -290,6 +291,29 @@ function UploadForm({ session, subjectId, onUploaded }) {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteMaterial() {
+    if (!window.confirm('Delete this material and all of its uploaded files?')) return;
+
+    setError('');
+    setNotice('');
+    setDeleting(true);
+    try {
+      const result = await api.deleteSessionMaterial(session.id);
+      setTitle('');
+      setDescription('');
+      setObjectives('');
+      setLinks('');
+      setVisibility('absent');
+      setSelectedStudentIds([]);
+      setNotice(result.message);
+      await onUploaded();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -470,7 +494,7 @@ function UploadForm({ session, subjectId, onUploaded }) {
       <button
         type="submit"
         className="fd-submit"
-        disabled={saving || (visibility === 'selected' && studentsLoading)}
+        disabled={saving || deleting || (visibility === 'selected' && studentsLoading)}
       >
         {saving
           ? 'Saving…'
@@ -480,6 +504,16 @@ function UploadForm({ session, subjectId, onUploaded }) {
               ? 'Update published material'
               : 'Publish material'}
       </button>
+      {session.material ? (
+        <button
+          type="button"
+          className="fd-delete-material"
+          onClick={handleDeleteMaterial}
+          disabled={saving || deleting}
+        >
+          {deleting ? 'Deleting material…' : 'Delete material and all files'}
+        </button>
+      ) : null}
     </form>
   );
 }
@@ -496,6 +530,7 @@ export default function FacultyDashboard() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [error, setError] = useState('');
   const [downloadError, setDownloadError] = useState('');
+  const [attachmentActionId, setAttachmentActionId] = useState('');
 
   const loadClasses = useCallback(async () => {
     const payload = await api.facultyClasses();
@@ -592,6 +627,38 @@ export default function FacultyDashboard() {
       await downloadFile(attachment);
     } catch (err) {
       setDownloadError(err.message);
+    }
+  }
+
+  async function handleReplaceAttachment(attachment, file) {
+    setDownloadError('');
+    const formData = new FormData();
+    formData.append('file', file);
+    setAttachmentActionId(attachment.id);
+
+    try {
+      const result = await api.replaceMaterialAttachment(attachment.id, formData);
+      if (result.warning) setDownloadError(result.warning);
+      await refreshAfterUpload();
+    } catch (err) {
+      setDownloadError(err.message);
+    } finally {
+      setAttachmentActionId('');
+    }
+  }
+
+  async function handleDeleteAttachment(attachment) {
+    if (!window.confirm(`Delete "${attachment.name}"?`)) return;
+
+    setDownloadError('');
+    setAttachmentActionId(attachment.id);
+    try {
+      await api.deleteMaterialAttachment(attachment.id);
+      await refreshAfterUpload();
+    } catch (err) {
+      setDownloadError(err.message);
+    } finally {
+      setAttachmentActionId('');
     }
   }
 
@@ -1238,9 +1305,32 @@ export default function FacultyDashboard() {
                                 type="button"
                                 className="fd-files__btn"
                                 onClick={() => handleDownload(attachment)}
+                                disabled={Boolean(attachmentActionId)}
                               >
                                 <DownloadIcon />
                                 Download
+                              </button>
+                              <label className="fd-files__btn">
+                                Replace
+                                <input
+                                  type="file"
+                                  accept={ALLOWED_EXTENSIONS.map((extension) => `.${extension}`).join(',')}
+                                  disabled={Boolean(attachmentActionId)}
+                                  aria-label={`Replace ${attachment.name}`}
+                                  onChange={(event) => {
+                                    const [file] = Array.from(event.target.files || []);
+                                    if (file) handleReplaceAttachment(attachment, file);
+                                    event.target.value = '';
+                                  }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                className="fd-files__btn fd-files__btn--danger"
+                                onClick={() => handleDeleteAttachment(attachment)}
+                                disabled={Boolean(attachmentActionId)}
+                              >
+                                {attachmentActionId === attachment.id ? 'Saving…' : 'Delete'}
                               </button>
                             </li>
                           ))}

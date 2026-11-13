@@ -39,12 +39,12 @@ async function request(path, { method = 'GET', body } = {}) {
   return data;
 }
 
-async function requestForm(path, formData) {
+async function requestForm(path, formData, method = 'POST') {
   const headers = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   const response = await fetch(apiUrl(path), {
-    method: 'POST',
+    method,
     headers,
     credentials: 'include',
     body: formData,
@@ -108,6 +108,12 @@ export const api = {
   facultySession: (sessionId) => request(`/faculty/sessions/${sessionId}`),
   uploadMaterial: (sessionId, formData) =>
     requestForm(`/faculty/sessions/${sessionId}/material`, formData),
+  replaceMaterialAttachment: (attachmentId, formData) =>
+    requestForm(`/faculty/materials/${attachmentId}`, formData, 'PATCH'),
+  deleteMaterialAttachment: (attachmentId) =>
+    request(`/faculty/materials/${attachmentId}`, { method: 'DELETE' }),
+  deleteSessionMaterial: (sessionId) =>
+    request(`/faculty/sessions/${sessionId}/material`, { method: 'DELETE' }),
   hodOverview: () => request('/hod/overview'),
   hodFaculty: () => request('/hod/faculty'),
   hodSubjects: () => request('/hod/subjects'),

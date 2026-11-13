@@ -1793,6 +1793,24 @@ button {
   cursor: pointer;
 }
 
+.fd-files__btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.fd-files__btn input {
+  display: none;
+}
+
+.fd-files__btn--danger {
+  color: #b42318;
+  border-color: #f0c7c3;
+}
+
+.fd-files__btn.fd-files__btn--danger:hover {
+  background: #fff1f0;
+}
+
 .fd-files__btn:hover {
   background: #eef4ff;
 }
@@ -1804,6 +1822,28 @@ button {
   border: 1px solid #e7eef9;
   border-radius: 16px;
   box-shadow: 0 12px 30px rgba(37, 68, 148, 0.05);
+}
+
+.fd-delete-material {
+  margin: 12px 0 0 10px;
+  padding: 9px 13px;
+  color: #b42318;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid #f0c7c3;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.fd-delete-material:hover {
+  background: #fff1f0;
+}
+
+.fd-delete-material:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .fd-form__title {
